@@ -1,0 +1,5 @@
+# Chapter 01 needs nothing but the standard library. Everything below is for
+# the chapters that follow.
+mlx>=0.25
+numpy>=1.26
+pytest>=8.0
