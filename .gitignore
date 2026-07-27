@@ -1,0 +1,26 @@
+# data and artifacts
+data/*.txt
+data/*.json
+data/*.bin
+checkpoints/
+runs/
+*.safetensors
+*.npz
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# macOS / editors
+.DS_Store
+.vscode/
+.idea/
+
+# xcode (chapter 08)
+08_ship_ios/**/xcuserdata/
+08_ship_ios/**/*.xcuserstate
+08_ship_ios/**/DerivedData/
