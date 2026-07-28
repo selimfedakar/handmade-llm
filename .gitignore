@@ -1,10 +1,13 @@
-# data and artifacts
-data/*.txt
-data/*.json
-data/*.bin
+# Data and artifacts. `data/` is ignored wholesale rather than by extension:
+# an earlier version listed *.txt, *.json and *.bin, and `data/tokens/*.npy`
+# walked straight through the gap. Corpora and checkpoints do not belong in a
+# repository people clone to learn from.
+data/*
+!data/download.py
 checkpoints/
 runs/
 *.safetensors
+*.npy
 *.npz
 
 # python
