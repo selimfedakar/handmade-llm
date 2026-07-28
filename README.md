@@ -122,5 +122,3 @@ I am not a researcher. I am someone who wanted the whole chain to fit on one lap
 MIT. Take it, teach with it, ship with it.
 
 ---
-
-*Bir başka gün, bir başka yerde, bir başka zaman ve bir başka mekânda, tekrar görüşünceye kadar kendinize çok iyi bakın.*
