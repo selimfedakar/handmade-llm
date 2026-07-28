@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 300" width="900" height="300" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+  <title>Train it on the laptop you already own, then carry it in your pocket.</title>
+
+  <!-- One accent, one grey. No background fill, so it sits on either GitHub theme. -->
+  <defs>
+    <style>
+      .ink { stroke: #8b949e; fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+      .accent { stroke: #2f81f7; fill: none; stroke-width: 2.5; stroke-linecap: round; }
+      .accent-fill { fill: #2f81f7; }
+      .label { fill: #8b949e; font-size: 12px; }
+      .code { fill: #8b949e; font-size: 10.5px; }
+      .dim { stroke: #8b949e; stroke-opacity: 0.35; stroke-width: 1.5; fill: none; }
+    </style>
+  </defs>
+
+  <!-- ── the laptop ─────────────────────────────────────────────── -->
+  <g transform="translate(40,54)">
+    <rect class="ink" x="0" y="0" width="300" height="180" rx="8"/>
+    <path class="ink" d="M-26,196 L326,196 L308,180 L-8,180 Z"/>
+    <line class="dim" x1="130" y1="188" x2="170" y2="188"/>
+
+    <!-- the loss curve, drawn from the real numbers: 6.97 down to 4.17 -->
+    <text class="code" x="16" y="26">loss 6.97</text>
+    <path class="accent" d="M20,44 C60,96 84,104 116,120 C152,138 190,142 224,148 C248,152 268,154 282,156"/>
+    <text class="code" x="214" y="176">4.17</text>
+    <circle class="accent-fill" cx="20" cy="44" r="3.5"/>
+    <circle class="accent-fill" cx="282" cy="156" r="3.5"/>
+  </g>
+
+  <!-- ── the arrow between them ─────────────────────────────────── -->
+  <g transform="translate(370,140)">
+    <line class="accent" x1="0" y1="8" x2="106" y2="8"/>
+    <path class="accent" d="M96,0 L108,8 L96,16"/>
+    <text class="label" x="54" y="-8" text-anchor="middle">quantize</text>
+    <text class="label" x="54" y="34" text-anchor="middle">chapters 07-08</text>
+  </g>
+
+  <!-- ── the phone ──────────────────────────────────────────────── -->
+  <g transform="translate(520,30)">
+    <rect class="ink" x="0" y="0" width="150" height="240" rx="20"/>
+    <line class="dim" x1="58" y1="14" x2="92" y2="14"/>
+
+    <!-- a conversation: the model answering, on the phone, offline -->
+    <rect class="dim" x="18" y="42" width="88" height="26" rx="13"/>
+    <text class="code" x="30" y="59">to be, or</text>
+
+    <rect class="accent" x="44" y="80" width="88" height="26" rx="13"/>
+    <text class="code" x="56" y="97">not to be</text>
+
+    <rect class="dim" x="18" y="118" width="104" height="26" rx="13"/>
+    <text class="code" x="30" y="135">that is the</text>
+
+    <rect class="accent" x="30" y="156" width="102" height="26" rx="13"/>
+    <text class="code" x="42" y="173">question.</text>
+
+    <text class="label" x="75" y="216" text-anchor="middle">no network</text>
+  </g>
+
+  <!-- ── the caption ────────────────────────────────────────────── -->
+  <text class="label" x="450" y="286" text-anchor="middle">
+    24.9M parameters · trained on one laptop · zero dollars of compute
+  </text>
+</svg>
