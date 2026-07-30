@@ -1,10 +1,22 @@
 # handmade-llm
 
+![Train it on the laptop you already own, then carry it in your pocket](docs/assets/hero.svg)
+
 **Train a real language model from scratch on the Mac you already own — then put it on your iPhone.**
 
 No CUDA. No cloud bill. No rented A100s. A laptop, eight chapters, and a model that ends up talking to you from your own pocket.
 
-<!-- TODO(launch): 20s terminal GIF here — clone to first generated sentence. This is the single most important asset in the repo. -->
+![a byte-level BPE tokenizer trained from scratch in seconds, then sixty training steps with the loss falling from 6.97 to 5.54](docs/assets/demo.gif)
+
+*A tokenizer built from your own text, then the loss starting to fall. Both on an M1 Pro, both in under a minute, nothing rented. The recording is a script — [`docs/assets/demo.tape`](docs/assets/demo.tape) — so it can be regenerated when the output changes rather than going quietly stale.*
+
+And then the part that made me write this instead of reading someone else's:
+
+<p align="center">
+  <img src="docs/assets/phone.png" width="300" alt="the model generating Shakespeare-shaped text inside an iOS app, 103.8 tokens per second, 17 MiB peak memory, 14.9 MiB of weights">
+</p>
+
+*The same model, on an iPhone, offline. 14.9 MiB of weights, 17 MiB of peak memory, no network code and no permissions requested. It is 300 training steps and it does not write English — it writes the shape of a play, which is the honest result and the one the chapter argues you should expect.*
 
 ---
 
@@ -36,6 +48,8 @@ That last chapter is the one I have not seen anywhere else. Plenty of repositori
 
 Each chapter has a short page in [`docs/`](docs/) — what it does, why it is built that way, and the numbers it produced on my machine. And [`docs/LESSONS.md`](docs/LESSONS.md) is the other half of that: the things I got wrong first, including the benchmark number that was fifty times off and nearly shipped. The fixes are in the code; the reasons are only there.
 
+[`docs/AUDIT.md`](docs/AUDIT.md) is the last pass over all of it before this went public — every suite re-run rather than recalled, and the three defects that pass found, including the one where recording the demo for this README destroyed the checkpoint the whole repository is measured against.
+
 ## Two claims, and the receipts
 
 Most repositories tell you their fast path is equivalent to the obvious one, and that their checkpoints resume cleanly. I wrote the tests instead.
@@ -60,7 +74,47 @@ python 02_model/demo.py               # an untrained model, generating
 python 03_train/train.py --steps 300  # the loss starts falling
 ```
 
-On an M1 Pro with 16 GB that is about four minutes from clone to a falling loss curve. Chapters 00–04 work today; the rest are landing in order.
+On an M1 Pro with 16 GB that is about four minutes from clone to a falling loss curve. Here is mine, drawn straight from `runs/latest/log.jsonl` by `03_train/plot_loss.py` — no plotting library, the SVG is written by hand:
+
+![training loss, steps 10 to 300, 6.97 down to 4.17](docs/assets/loss-curve.svg)
+
+Three hundred steps is four passes over TinyShakespeare and far too few to expect English. It is enough to see the loop working. All eight chapters work today.
+
+Once it has trained, shrink it:
+
+```bash
+python 07_quantize/compare.py          # float32 against 4-bit, on your machine
+```
+
+On an M1 Pro that model goes from 95.04 MiB to 14.88 MiB — 6.4x — while bits per byte moves from 2.134 to 2.136. Training moved the model 1.964 bits per byte away from knowing nothing; quantizing gives back 0.002 of it, and chapter 06's context probe is still positive on six seeds out of six afterwards.
+
+The quantizer is written out rather than imported, and the test asserts it produces *byte-identical* output to MLX's own kernel across all 24.9M weights of the trained checkpoint. [`docs/07-quantize.md`](docs/07-quantize.md) also has the speed measurement I got wrong the first time — measuring two models one after the other on a laptop that drifts is not measuring them under the same conditions, and it made a real 6% difference look like no difference at all.
+
+Then put it on your phone:
+
+```bash
+python 08_ship_ios/export_golden.py    # what the Swift side has to agree with
+python 08_ship_ios/bundle_model.py     # 14.9 MiB into the app bundle
+open 08_ship_ios/HandmadeLLMApp/HandmadeLLMApp.xcodeproj
+```
+
+A SwiftPM package holds the tokenizer and the transformer, rewritten in Swift on top of [mlx-swift](https://github.com/ml-explore/mlx-swift); the Xcode project is one SwiftUI screen on top of that. No network code, no permissions, nothing downloaded at run time.
+
+And the same claim gets the same treatment as everywhere else in this repository — **the Swift side is asserted to agree with the Python side, and you can run the assertion**:
+
+```bash
+cd 08_ship_ios/HandmadeLLM
+xcodebuild test -scheme HandmadeLLM -destination 'platform=OS X,arch=arm64' \
+  -skipPackagePluginValidation -skipMacroValidation
+```
+
+Thirty-two tests, on a fresh clone, with no corpus and no training run and no phone: a 106,496-weight model ships in the repository in both float32 and 4-bit form, with the logits Python got out of it. Both come back **bit-identical** in Swift, and the 24.9M checkpoint agrees to 1.4e-06 — which is less than the gap between MLX's fused attention and the written-out softmax *inside Python alone*, and [`docs/08-ship_ios.md`](docs/08-ship_ios.md) shows the measurement that establishes that.
+
+The awkward half of that chapter is the tokenizer. Chapter 01 splits text with a Python regular expression, and `\w` means a different set of characters to Python's `re` than it does to the ICU engine behind `NSRegularExpression` — they agree on every character in TinyShakespeare and disagree on combining marks and connector punctuation. So the splitter is written out by hand in Swift, predicate by predicate, and checked against 49 texts chosen to break it. One of the things that falls out: chapter 01's tokenizer cannot see an underscore at all. `"snake_case_name"` is three tokens and the underscores are gone.
+
+And the phone finally answers a question chapter 07 refused to answer on the laptop. On an iPhone 17 Pro Max, both models resident and timed in one alternating loop, both orders: **4-bit is ahead in fourteen paired rounds out of fourteen**, at 1.066x and 1.088x — the same band the laptop produced. Peak memory travels too, 98 MiB against 17 where the Mac measured 97 against 18. What does not travel is absolute speed, which is about 40% of the laptop's.
+
+The screen's own tokens-per-second readout, if you read it as a comparison, says the opposite. That is the whole reason there is a separate Compare button, and [`docs/08-ship_ios.md`](docs/08-ship_ios.md) works through why.
 
 Before you pick a size, ask what your machine will hold:
 
@@ -113,12 +167,10 @@ I have one Mac. The table is only useful if it has more than one Mac in it — s
 
 ## Who is writing this
 
-I am Selim Fedakar, a computer science student in Los Angeles, co-founder and CTO of two small hardware-and-AI companies, with two apps live on the App Store. I have been working through Stanford's CS336 on my own for a while now, and this repository is where the parts that finally clicked get written down properly.
+I am Selim Fedakar, a computer science student in Los Angeles, co-founder and CTO of two small hardware-and-AI companies, with two apps live on the App Store. I build projects alongside people doing AI research at Harvard — I was in Boston last week, and they hosted me there. I have also been working through Stanford's CS336 on my own for a while now, and this repository is where the parts that finally clicked get written down properly.
 
-I am not a researcher. I am someone who wanted the whole chain to fit on one laptop, and kept going until it did.
+What I wanted was for the whole chain to fit on one laptop. I kept going until it did.
 
 ## License
 
 MIT. Take it, teach with it, ship with it.
-
----
