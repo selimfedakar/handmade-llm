@@ -125,6 +125,26 @@ thing about this repository — do not quietly drop it to save effort.
 - **A quantization group size has to divide every matrix in the model**, and
   `d_ff` is where it fails first — 1,344 is not a multiple of 128, so group 128
   is impossible for this architecture at any bit width.
+- **`03_train/train.py` defaults to `--out-dir runs/latest`, and that is where the
+  step-300 checkpoint lives.** Every number in chapters 06, 07 and 08 was
+  measured against it. Any training run without an explicit `--out-dir`
+  overwrites it, silently, including the one inside `docs/assets/demo.tape` —
+  recording the README GIF destroyed it once. The tape now passes
+  `--out-dir runs/demo`; keep it that way, and pass `--out-dir` for anything
+  exploratory. `docs/LESSONS.md` L17.
+- **`runs/latest` holds the original step-300 weights and is NOT resumable.**
+  The weights were restored byte-exact from the app bundle after the accident
+  above; the optimizer state and `log.jsonl` were not in that backup and are
+  gone. **Never "repair" this by training a fresh 300-step run into
+  `runs/latest`** — every number in chapters 06, 07 and 08, the golden fixture
+  the Swift tests assert against, the bundled app models and the phone
+  measurements are all tied to these exact weights. New weights invalidate all
+  of it while looking like a fix. `load_checkpoint` refuses with an explanation,
+  and the stale files are renamed (`optimizer.safetensors.step60-stale`,
+  `log.jsonl.demo-60-steps`) rather than deleted so the message can name them.
+  Consequence: `python 03_train/plot_loss.py` exits 1 until a real 300-step log
+  exists again, which is deliberate — `docs/assets/loss-curve.svg` is correct and
+  must not be overwritten by a short run.
 - **`data/` is gitignored.** Never commit a corpus or a trained tokenizer.
 - **Python here is Anaconda 3.10** at `/Users/selimfedakar/anaconda3/bin/python3`.
 - **Chapter 08 needs the Metal Toolchain, which Xcode 26 does not ship.**
@@ -151,7 +171,7 @@ thing about this repository — do not quietly drop it to save effort.
   carry a global random state; mlx-swift threads an explicit key. Identical
   logits, different samples. Every cross-language assertion is on `argmax`.
 
-## State as of 2026-07-27
+## State as of 2026-07-29
 
 - Chapter 00 `check_mac.py`: **L2** — ran on this machine: M1 Pro, 16 GiB,
   3.89 TFLOP/s fp16, ~805M parameter ceiling.
@@ -222,7 +242,7 @@ thing about this repository — do not quietly drop it to save effort.
   bit-identical logits and identical greedy generation. This is the file chapter
   08 loads from Swift.
 - Chapter 08 Swift port: **L2** — 32 XCTest cases green via `xcodebuild test`
-  (`Executed 32 tests, with 0 failures in 1.205 seconds`). Python against Swift:
+  (`Executed 32 tests, with 0 failures in 0.837 seconds`). Python against Swift:
   the committed 106,496-weight golden model reproduces **bit-identically** in
   both float32 and 4-bit (`worst |Δ| = 0.000e+00` over 1,280 logits, greedy
   generation identical over 24 tokens); the real 24.9M checkpoint agrees to
@@ -233,12 +253,22 @@ thing about this repository — do not quietly drop it to save effort.
   chosen to break an ICU-based port (combining marks, connector punctuation,
   superscripts, ZWJ emoji, `U+001C`–`U+001F`). Encoding and decoding match the
   real 4,097-token tokenizer on the same texts.
-- Chapter 08 app: **L1 on the phone, L2 on the Mac.** The Xcode project builds
-  for the simulator and installs, and MLX aborts on launch there (see landmines
-  — this is not a bug in the app). **Nothing has run on a physical device**;
-  tokens/sec, peak memory and the paired 4-bit-vs-float32 comparison on a phone
-  are the chapter's open items, and `docs/08-ship_ios.md` marks them as not
-  measured rather than filling them with laptop numbers.
+- Chapter 08 app: **L2 on a physical phone.** Built with
+  `DEVELOPMENT_TEAM=PAST7W47P5`, installed over the cable with
+  `xcrun devicectl device install app`, and run on an **iPhone 17 Pro Max**
+  (`iPhone18,2`), iOS 26.5.2. MLX works there; it only dies in the simulator
+  (see landmines). Measured:
+  - Paired, 7 recorded rounds after 2 warm-ups, 64 greedy tokens, **both
+    orders**: `float32 139.1 vs 4-bit 151.3 (1.088x)` and
+    `float32 135.1 vs 4-bit 144.0 (1.066x)` — **4-bit ahead in 14 of 14.**
+    Inside the laptop's 1.02–1.10 band, so **the gap does not widen on a
+    phone**, which is the question chapter 07 deferred here.
+  - Peak memory, each from its own fresh launch: **4-bit 17 MiB, float32
+    98 MiB** (laptop: 18 and 97).
+  - Single-model readout, sampled: 4-bit 103.8 tok/s, float32 125.2 tok/s cold
+    and 138.8 warm. **Read as a comparison these give the opposite sign to the
+    paired loop** — L13 on a phone, and the reason the Compare button exists.
+  - Absolute throughput is ~40% of the laptop's. One phone, and a fast one.
 - Chapter 08 has **no Python tests, on purpose** — its tests are Swift, because
   the thing under test is Swift. `export_golden.py` and `bundle_model.py` are
   fixture and packaging scripts, exercised every time the Swift suite runs.
@@ -307,11 +337,16 @@ Chapter 08 is not in that number and cannot be — it is Swift:
 cd 08_ship_ios/HandmadeLLM && xcodebuild test -scheme HandmadeLLM \
   -destination 'platform=OS X,arch=arm64' \
   -skipPackagePluginValidation -skipMacroValidation
-→ Executed 32 tests, with 0 failures (0 unexpected) in 1.205 seconds
+→ Executed 32 tests, with 0 failures (0 unexpected) in 0.837 seconds
 ```
 
 **212 assertions across the two suites.** Paste the real counts when they
-change; never recall them.
-- README GIF: **missing.** Cannot be recorded before chapter 03 exists. It is
-  the single highest-value launch asset; do not launch without it. Chapter 08
-  no longer blocks it.
+change; never recall them. Both suites re-run on 2026-07-29 and both hold. The
+**counts** are the claim; the runtimes are not — the Swift suite lands anywhere
+from 0.78s to 0.85s across back-to-back runs, which is L5 operating at the scale
+of a test suite.
+- README GIF: **recorded.** `docs/assets/demo.gif`, 229 KB, 1180x560, 48.8s —
+  the tokenizer trained from scratch, then sixty steps with the loss falling.
+  Regenerate with `vhs docs/assets/demo.tape` and **read the landmine above
+  first**; the tape trains a model.
+- iPhone screenshot: `docs/assets/phone.png`, in the README under the GIF.
