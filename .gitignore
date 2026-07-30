@@ -27,3 +27,17 @@ venv/
 08_ship_ios/**/xcuserdata/
 08_ship_ios/**/*.xcuserstate
 08_ship_ios/**/DerivedData/
+08_ship_ios/HandmadeLLM/.build/
+
+# The model the app ships with. `bundle_model.py` copies 15 MiB (or 110 with the
+# float32 pair) in here from `runs/`; none of it is committed. The directory
+# itself is, because Xcode's synchronized group wants the folder to exist.
+08_ship_ios/HandmadeLLMApp/Resources/*
+!08_ship_ios/HandmadeLLMApp/Resources/README.md
+
+# The one exception to `*.safetensors` above, and it is deliberate. The golden
+# fixtures are a 106,496-weight model in float32 and 4-bit — 490 KiB, written by
+# `export_golden.py` — and they are what makes `xcodebuild test` mean anything on
+# a fresh clone with no corpus and no training run. A test fixture, not a
+# checkpoint. Check `du -sh` before adding anything else here.
+!08_ship_ios/HandmadeLLM/Tests/HandmadeLLMTests/Golden/**/*.safetensors

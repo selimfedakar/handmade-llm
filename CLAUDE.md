@@ -28,6 +28,13 @@ python 00_setup/check_mac.py                              # measure this machine
 python 01_tokenizer/train_tokenizer.py --vocab-size 4096  # ~6s on an M1 Pro
 python -m pytest -q                                       # whole suite
 python -m pytest 01_tokenizer -q                          # one chapter
+
+# chapter 08 is Swift, and its tests do not run under `swift test` — see below
+python 08_ship_ios/export_golden.py                       # fixtures for the Swift side
+python 08_ship_ios/bundle_model.py                        # the model into the app
+cd 08_ship_ios/HandmadeLLM && xcodebuild test -scheme HandmadeLLM \
+  -destination 'platform=OS X,arch=arm64' \
+  -skipPackagePluginValidation -skipMacroValidation
 ```
 
 ## Map
@@ -42,7 +49,7 @@ python -m pytest 01_tokenizer -q                          # one chapter
 | `05_finetune/` | SFT and LoRA |
 | `06_eval/` | did it actually learn |
 | `07_quantize/` | 4-bit and the quality it costs |
-| `08_ship_ios/` | mlx-swift + SwiftUI — the finish line |
+| `08_ship_ios/` | mlx-swift + SwiftUI — the finish line. `HandmadeLLM/` is the package (tokenizer, model, 32 tests), `HandmadeLLMApp/` the screen, `export_golden.py` the fixtures Python writes for the Swift side to match |
 | `bench/` | community table: chip × memory → tokens/sec |
 | `data/` | gitignored; downloaded corpora and trained tokenizers |
 
@@ -75,6 +82,11 @@ learns byte-identical merges. Chapter 02 does the same for attention: an
 explicit softmax implementation next to MLX's fused kernel, with an equivalence
 test between them.
 
+Chapter 08 does it across a language boundary: `export_golden.py` writes what
+Python produces and the Swift tests assert Swift produces the same — token ids,
+logits, and greedy generation. It also keeps the pattern *inside* Swift, with
+`Unpack.swift` decoding quantized weights by hand next to MLX's kernel.
+
 Keep doing this. The teaching version explains, the fast version ships, and the
 test is what makes it honest instead of a claim. It is the most distinctive
 thing about this repository — do not quietly drop it to save effort.
@@ -100,10 +112,46 @@ thing about this repository — do not quietly drop it to save effort.
 - **Peak memory is repeatable to the byte; throughput is not.** Memory
   comparisons can be read flat. Throughput comparisons need a margin, and so do
   loss comparisons (see the reproducibility section above).
+- **Two models compared for speed must be timed in the same alternating loop.**
+  Warm-ups and a median handle noise inside one measurement; they do nothing
+  about drift between two. Measured sequentially, chapter 07 concluded 4-bit was
+  no faster; measured paired, it is ahead every time. Flip the order inside the
+  loop to prove the loop did not decide it. `docs/LESSONS.md` L13.
+- **Rounding ties are not an edge case in chapter 07, they are the common case.**
+  `mx.round` breaks a tie toward the even integer; MLX's quantize kernel breaks
+  it away from zero. `_round_half_away` in `07_quantize/quantize.py` exists for
+  exactly that and must not be "simplified" back. It cost two codes in 688,128
+  to notice. `docs/LESSONS.md` L12.
+- **A quantization group size has to divide every matrix in the model**, and
+  `d_ff` is where it fails first — 1,344 is not a multiple of 128, so group 128
+  is impossible for this architecture at any bit width.
 - **`data/` is gitignored.** Never commit a corpus or a trained tokenizer.
 - **Python here is Anaconda 3.10** at `/Users/selimfedakar/anaconda3/bin/python3`.
+- **Chapter 08 needs the Metal Toolchain, which Xcode 26 does not ship.**
+  `xcodebuild -downloadComponent MetalToolchain`, 688 MB, once per machine.
+  Without it `swift build` succeeds silently and the first MLX call dies in C++
+  with `Failed to load the default metallib`. There is **no CPU fallback** —
+  MLX's scheduler builds its GPU stream whichever device you ask for, so
+  `Device.setDefault(device: .cpu)` fails inside the call it was meant to avoid.
+  `docs/LESSONS.md` L16.
+- **`swift test` cannot build MLX's Metal shaders**, even with the toolchain
+  installed; mlx-swift's README says so. Chapter 08's command is
+  **`xcodebuild test`**. Do not "simplify" it back.
+- **MLX does not run in the iOS simulator.** The app builds, installs, launches
+  and aborts before the first frame: `mlx/backend/metal/device.cpp:328` calls
+  `device_->architecture()->name()->utf8String()`, and `MTLDevice.architecture`
+  is nil in the simulator. Nothing on the app side can avoid it. Chapter 08
+  needs a physical device. `docs/LESSONS.md` L15.
+- **A fixture small enough to commit is small enough to hide your noise floor.**
+  The 106,496-weight golden model reproduces Python's logits exactly; the 24.9M
+  one is 1.4e-06 away, which is *less* than the gap between MLX's fused
+  attention and the written-out softmax inside Python alone. Do not read a first
+  appearance of 1e-06 at the real size as a port bug. `docs/LESSONS.md` L14.
+- **Swift and Python only agree on greedy decoding.** MLX's Python bindings
+  carry a global random state; mlx-swift threads an explicit key. Identical
+  logits, different samples. Every cross-language assertion is on `argmax`.
 
-## State as of 2026-07-26
+## State as of 2026-07-27
 
 - Chapter 00 `check_mac.py`: **L2** — ran on this machine: M1 Pro, 16 GiB,
   3.89 TFLOP/s fp16, ~805M parameter ceiling.
@@ -140,7 +188,83 @@ thing about this repository — do not quietly drop it to save effort.
   5.0644 in 200 steps / 4.5s. Control run confirms the base model never stops
   (60/60 tokens) and the fine-tuned one stops on `<|endoftext|>`.
 - Chapter 05 test suite: **L1** — 19 passed.
-- Chapters 06–08: **not started.** Next is `06_eval`.
+- Chapter 06 metrics + probes: **L2** — ran against the step-300 checkpoint and
+  an untrained control. Held out: loss 4.6032, perplexity 99.8, **2.134 bits per
+  byte**, top-1 24.0%, top-5 38.8%; control 8.8388 / 6,896.9 / 4.098 / 0.0%.
+  Probes over six seeds: context gain trained +0.0312 [+0.0179, +0.0477] vs
+  control −0.0135 [−0.1454, +0.1281]; induction trained −0.0222, straddling
+  zero — **no induction circuit at 300 steps, and that negative result stays
+  in the notes.**
+- Chapter 06 test suite: **L1** — 25 passed in 0.62s, including
+  `test_bits_per_byte_survives_a_change_of_tokenizer` (the chapter's thesis)
+  and regression guards that fail loudly if either probe goes back to running
+  on a slice.
+- Chapter 07 quantization: **L2** — ran against the step-300 checkpoint. 4 bits
+  in groups of 64: 95.04 MiB → 14.88 MiB (**6.39x**), peak memory during
+  generation 97 → 18 MiB, bits per byte 2.134 → 2.136, top-1 24.0% unchanged.
+  **99.9% of the learning survives.** Chapter 06's probes run before and after:
+  context gain positive **6/6 seeds both ways** (+0.0312 → +0.0316), induction
+  absent both ways, memorisation gap +0.3207 → +0.3183.
+- Chapter 07 speed: **L2, and it was wrong once.** Measured sequentially the
+  answer was "no difference" (seven runs, ordering flipped four times, spread
+  244–379 tok/s inside one model). Measured **paired** — both models resident,
+  alternating rounds, medians — 4-bit is ahead in all seven measurements,
+  ratios 1.02–1.10. Canonical run 346.4 vs 368.7 tok/s. Report the sign, not
+  the magnitude. `docs/LESSONS.md` L13.
+- Chapter 07 equivalence: **L3** — byte-identical to `mx.quantize` across all
+  24,904,192 weights of the real checkpoint, at bits 2/3/4/5/6/8 x group 32/64:
+  0 differing words, 0 differing scales, 0 differing biases. Adversarial pass
+  found the tie-rounding divergence (L12) that the small-matrix tests missed.
+- Chapter 07 test suite: **L1** — 33 passed in 0.42s, including
+  `test_the_packed_words_match_mlx_exactly` and
+  `test_a_tie_breaks_away_from_zero_the_way_the_kernel_does`.
+- Chapter 07 save/load: **L2** — `save_quantized`/`load_quantized` round-trip to
+  bit-identical logits and identical greedy generation. This is the file chapter
+  08 loads from Swift.
+- Chapter 08 Swift port: **L2** — 32 XCTest cases green via `xcodebuild test`
+  (`Executed 32 tests, with 0 failures in 1.205 seconds`). Python against Swift:
+  the committed 106,496-weight golden model reproduces **bit-identically** in
+  both float32 and 4-bit (`worst |Δ| = 0.000e+00` over 1,280 logits, greedy
+  generation identical over 24 tokens); the real 24.9M checkpoint agrees to
+  `1.431e-06` with identical argmax and identical 16-token greedy output, and
+  its embedding output is bit-identical. Weights held: **14.88 MiB**.
+- Chapter 08 tokenizer: **L2** — the hand-written Swift splitter matches
+  `re.findall(SPLIT_PATTERN, …)` on all 49 fixture texts, including the ones
+  chosen to break an ICU-based port (combining marks, connector punctuation,
+  superscripts, ZWJ emoji, `U+001C`–`U+001F`). Encoding and decoding match the
+  real 4,097-token tokenizer on the same texts.
+- Chapter 08 app: **L1 on the phone, L2 on the Mac.** The Xcode project builds
+  for the simulator and installs, and MLX aborts on launch there (see landmines
+  — this is not a bug in the app). **Nothing has run on a physical device**;
+  tokens/sec, peak memory and the paired 4-bit-vs-float32 comparison on a phone
+  are the chapter's open items, and `docs/08-ship_ios.md` marks them as not
+  measured rather than filling them with laptop numbers.
+- Chapter 08 has **no Python tests, on purpose** — its tests are Swift, because
+  the thing under test is Swift. `export_golden.py` and `bundle_model.py` are
+  fixture and packaging scripts, exercised every time the Swift suite runs.
+
+## Probe rule
+
+**A probe scores a slice; it never *runs* on a slice.** Both chapter 06 probes
+were feeding the model only the region they graded, which hid the prefix from
+the context probe and the first copy from the induction probe. Use
+`nll_from_logits` — full window through the model, grading restricted
+afterwards. The tell was a gain of exactly `+0.0000`; an implausibly clean
+number is evidence about the instrument, not the world. `docs/LESSONS.md` L9.
+
+**And no probe result is reported from one seed.** Six, with the range printed,
+compared against the untrained control's own spread. Where the effect is
+smaller than the control's spread — as the context gain is — the claim is the
+consistency of the *sign*, never the magnitude.
+- Repository is **live and public**: `github.com/selimfedakar/handmade-llm`,
+  34 commits on `main`. README opens with `docs/assets/hero.svg` and shows
+  `docs/assets/loss-curve.svg` from a real run. The terminal GIF is still
+  missing and still the highest-value launch asset — `docs/assets/demo.tape`
+  is written and waiting for `brew install vhs`.
+- `.gitignore` used to list `data/*.txt|json|bin`, and `data/tokens/*.npy`
+  walked through the gap. Now `data/*` with `!data/download.py`. Check
+  `git status` before every push; a corpus in a teaching repository is
+  embarrassing in a way that is hard to undo.
 
 ## The vocabulary rule (learned the hard way, 2026-07-26)
 
@@ -175,7 +299,19 @@ Consequences, all of them load-bearing:
 
 ## Whole-suite check
 
-`python -m pytest -q` → 122 passed (33 + 27 + 19 + 24 + 19). Paste the real
-count when it changes; never recall it.
+`python -m pytest -q` → 180 passed in 2.07s (33 + 27 + 19 + 24 + 19 + 25 + 33).
+
+Chapter 08 is not in that number and cannot be — it is Swift:
+
+```
+cd 08_ship_ios/HandmadeLLM && xcodebuild test -scheme HandmadeLLM \
+  -destination 'platform=OS X,arch=arm64' \
+  -skipPackagePluginValidation -skipMacroValidation
+→ Executed 32 tests, with 0 failures (0 unexpected) in 1.205 seconds
+```
+
+**212 assertions across the two suites.** Paste the real counts when they
+change; never recall them.
 - README GIF: **missing.** Cannot be recorded before chapter 03 exists. It is
-  the single highest-value launch asset; do not launch without it.
+  the single highest-value launch asset; do not launch without it. Chapter 08
+  no longer blocks it.
