@@ -143,7 +143,25 @@ def save_checkpoint(
 
 
 def load_checkpoint(directory: Path) -> tuple[Transformer, dict, int, TrainConfig]:
-    """Rebuild the model and optimizer state from a checkpoint directory."""
+    """Rebuild the model and optimizer state from a checkpoint directory.
+
+    All three files are required, and the optimizer is the one that goes missing.
+    Weights are what everything else in this repository reads, so a directory can
+    end up with current weights and no optimizer state — and resuming from that
+    is not "resuming with a fresh optimizer", it is restarting Adam's moment
+    estimates at zero underneath a model that is three hundred steps in. That
+    diverges quietly rather than failing, which is the worst available outcome,
+    so this refuses instead of coping.
+    """
+    for name in ("meta.json", "weights.safetensors", "optimizer.safetensors"):
+        if not (directory / name).exists():
+            raise FileNotFoundError(
+                f"{directory / name} is missing, so this checkpoint cannot be resumed from.\n"
+                f"Present: {sorted(p.name for p in directory.iterdir()) if directory.exists() else 'nothing'}\n"
+                "Weights alone are enough to evaluate, quantize or ship a model — see "
+                "chapters 06, 07 and 08 — but not to continue training it. Train a new "
+                "run with --out-dir instead of resuming this one."
+            )
     meta = json.loads((directory / "meta.json").read_text(encoding="utf-8"))
     model = Transformer(ModelConfig(**meta["model_config"]))
     model.update(tree_unflatten(list(mx.load(str(directory / "weights.safetensors")).items())))
