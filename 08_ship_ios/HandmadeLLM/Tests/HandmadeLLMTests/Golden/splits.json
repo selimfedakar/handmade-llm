@@ -1,0 +1,445 @@
+{
+ "pattern": "'(?:[sdmt]|ll|ve|re)| ?[^\\W\\d_]+| ?\\d{1,3}| ?[^\\s\\w]+|\\s+(?!\\S)|\\s+",
+ "cases": [
+  {
+   "text": "First Citizen:\nBefore we proceed any further, hear me speak.",
+   "chunks": [
+    "First",
+    " Citizen",
+    ":",
+    "\n",
+    "Before",
+    " we",
+    " proceed",
+    " any",
+    " further",
+    ",",
+    " hear",
+    " me",
+    " speak",
+    "."
+   ]
+  },
+  {
+   "text": "To be, or not to be, that is the question.",
+   "chunks": [
+    "To",
+    " be",
+    ",",
+    " or",
+    " not",
+    " to",
+    " be",
+    ",",
+    " that",
+    " is",
+    " the",
+    " question",
+    "."
+   ]
+  },
+  {
+   "text": "",
+   "chunks": []
+  },
+  {
+   "text": " ",
+   "chunks": [
+    " "
+   ]
+  },
+  {
+   "text": "   ",
+   "chunks": [
+    "   "
+   ]
+  },
+  {
+   "text": "a b",
+   "chunks": [
+    "a",
+    " b"
+   ]
+  },
+  {
+   "text": "a  b",
+   "chunks": [
+    "a",
+    " ",
+    " b"
+   ]
+  },
+  {
+   "text": "a   b",
+   "chunks": [
+    "a",
+    "  ",
+    " b"
+   ]
+  },
+  {
+   "text": "hello   ",
+   "chunks": [
+    "hello",
+    "   "
+   ]
+  },
+  {
+   "text": "\n\n",
+   "chunks": [
+    "\n\n"
+   ]
+  },
+  {
+   "text": "\ttabbed\ttext\t",
+   "chunks": [
+    "\t",
+    "tabbed",
+    "\t",
+    "text",
+    "\t"
+   ]
+  },
+  {
+   "text": "don't we'll I've you're he'd it's",
+   "chunks": [
+    "don",
+    "'t",
+    " we",
+    "'ll",
+    " I",
+    "'ve",
+    " you",
+    "'re",
+    " he",
+    "'d",
+    " it",
+    "'s"
+   ]
+  },
+  {
+   "text": "DON'T WE'LL I'VE",
+   "chunks": [
+    "DON",
+    "'",
+    "T",
+    " WE",
+    "'",
+    "LL",
+    " I",
+    "'",
+    "VE"
+   ]
+  },
+  {
+   "text": "'s 'S 'll 'LL 'x '",
+   "chunks": [
+    "'s",
+    " '",
+    "S",
+    " '",
+    "ll",
+    " '",
+    "LL",
+    " '",
+    "x",
+    " '"
+   ]
+  },
+  {
+   "text": "1 12 123 1234 1234567",
+   "chunks": [
+    "1",
+    " 12",
+    " 123",
+    " 123",
+    "4",
+    " 123",
+    "456",
+    "7"
+   ]
+  },
+  {
+   "text": "in 1999 and 2026",
+   "chunks": [
+    "in",
+    " 199",
+    "9",
+    " and",
+    " 202",
+    "6"
+   ]
+  },
+  {
+   "text": "3.14159",
+   "chunks": [
+    "3",
+    ".",
+    "141",
+    "59"
+   ]
+  },
+  {
+   "text": "007",
+   "chunks": [
+    "007"
+   ]
+  },
+  {
+   "text": "snake_case_name",
+   "chunks": [
+    "snake",
+    "case",
+    "name"
+   ]
+  },
+  {
+   "text": "_leading and trailing_",
+   "chunks": [
+    "leading",
+    " and",
+    " trailing"
+   ]
+  },
+  {
+   "text": "a_b_c",
+   "chunks": [
+    "a",
+    "b",
+    "c"
+   ]
+  },
+  {
+   "text": "__dunder__",
+   "chunks": [
+    "dunder"
+   ]
+  },
+  {
+   "text": "!!!???",
+   "chunks": [
+    "!!!???"
+   ]
+  },
+  {
+   "text": "-- hey --",
+   "chunks": [
+    "--",
+    " hey",
+    " --"
+   ]
+  },
+  {
+   "text": "a+b=c",
+   "chunks": [
+    "a",
+    "+",
+    "b",
+    "=",
+    "c"
+   ]
+  },
+  {
+   "text": "(parenthesised)",
+   "chunks": [
+    "(",
+    "parenthesised",
+    ")"
+   ]
+  },
+  {
+   "text": "€100 and $5 and £3",
+   "chunks": [
+    "€",
+    "100",
+    " and",
+    " $",
+    "5",
+    " and",
+    " £",
+    "3"
+   ]
+  },
+  {
+   "text": "İstanbul'da güneş açtı",
+   "chunks": [
+    "İstanbul",
+    "'d",
+    "a",
+    " güneş",
+    " açtı"
+   ]
+  },
+  {
+   "text": "Grüße aus Straße",
+   "chunks": [
+    "Grüße",
+    " aus",
+    " Straße"
+   ]
+  },
+  {
+   "text": "日本語のテキストです",
+   "chunks": [
+    "日本語のテキストです"
+   ]
+  },
+  {
+   "text": "Здравствуй, мир",
+   "chunks": [
+    "Здравствуй",
+    ",",
+    " мир"
+   ]
+  },
+  {
+   "text": "مرحبا بالعالم",
+   "chunks": [
+    "مرحبا",
+    " بالعالم"
+   ]
+  },
+  {
+   "text": "नमस्ते दुनिया",
+   "chunks": [
+    "नमस",
+    "्",
+    "त",
+    "े",
+    " द",
+    "ु",
+    "न",
+    "ि",
+    "य",
+    "ा"
+   ]
+  },
+  {
+   "text": "éclair",
+   "chunks": [
+    "e",
+    "́",
+    "clair"
+   ]
+  },
+  {
+   "text": "à́̂",
+   "chunks": [
+    "a",
+    "̀́̂"
+   ]
+  },
+  {
+   "text": "́ alone",
+   "chunks": [
+    "́",
+    " alone"
+   ]
+  },
+  {
+   "text": "² ½ Ⅸ 一",
+   "chunks": [
+    "²",
+    " ½",
+    " Ⅸ",
+    " 一"
+   ]
+  },
+  {
+   "text": "x² + y²",
+   "chunks": [
+    "x²",
+    " +",
+    " y²"
+   ]
+  },
+  {
+   "text": "a‿b",
+   "chunks": [
+    "a",
+    "‿",
+    "b"
+   ]
+  },
+  {
+   "text": "a\u001cb",
+   "chunks": [
+    "a",
+    "\u001c",
+    "b"
+   ]
+  },
+  {
+   "text": "a\u001db\u001ec\u001fd",
+   "chunks": [
+    "a",
+    "\u001d",
+    "b",
+    "\u001e",
+    "c",
+    "\u001f",
+    "d"
+   ]
+  },
+  {
+   "text": "a b",
+   "chunks": [
+    "a",
+    " ",
+    "b"
+   ]
+  },
+  {
+   "text": "a　b",
+   "chunks": [
+    "a",
+    "　",
+    "b"
+   ]
+  },
+  {
+   "text": "a​b",
+   "chunks": [
+    "a",
+    "​",
+    "b"
+   ]
+  },
+  {
+   "text": "👨‍👩‍👧‍👦 family",
+   "chunks": [
+    "👨‍👩‍👧‍👦",
+    " family"
+   ]
+  },
+  {
+   "text": "🇹🇷 flag",
+   "chunks": [
+    "🇹🇷",
+    " flag"
+   ]
+  },
+  {
+   "text": "hello 🌍!",
+   "chunks": [
+    "hello",
+    " 🌍!"
+   ]
+  },
+  {
+   "text": "İyi günler! 42 çilek 🍓 _x_ é",
+   "chunks": [
+    "İyi",
+    " günler",
+    "!",
+    " 42",
+    " çilek",
+    " 🍓",
+    " ",
+    "x",
+    " e",
+    "́"
+   ]
+  }
+ ]
+}
