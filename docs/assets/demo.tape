@@ -8,13 +8,22 @@
 # repository is quietly lying about what the code does.
 #
 # Run `python data/download.py` first — the download is not part of the story.
+#
+# `--out-dir runs/demo` is not cosmetic. Without it this tape trains into
+# `runs/latest`, which is where chapters 06, 07 and 08 read the checkpoint every
+# number in this repository was measured against — and sixty steps would quietly
+# replace three hundred. Recording the demo would destroy the thing the demo is
+# advertising. `docs/LESSONS.md` L17.
 
 Output docs/assets/demo.gif
 
 Set Shell "bash"
 Set FontSize 15
 Set Width 1180
-Set Height 760
+# 560, not 760: the tallest screen in this recording is the tokenizer's, and it
+# ends around row 24. GitHub scales a README image down to about 890px wide, so
+# every blank row costs readable pixels in the part that is not blank.
+Set Height 560
 Set Padding 18
 Set TypingSpeed 35ms
 Set Theme "Catppuccin Mocha"
@@ -32,7 +41,7 @@ Sleep 500ms
 
 # --- 2. the loss starts falling ------------------------------------------
 
-Type "python 03_train/train.py --preset small --steps 60"
+Type "python 03_train/train.py --preset small --steps 60 --out-dir runs/demo"
 Sleep 400ms
 Enter
 
