@@ -286,11 +286,15 @@ number is evidence about the instrument, not the world. `docs/LESSONS.md` L9.
 compared against the untrained control's own spread. Where the effect is
 smaller than the control's spread — as the context gain is — the claim is the
 consistency of the *sign*, never the magnitude.
-- Repository is **live and public**: `github.com/selimfedakar/handmade-llm`,
-  34 commits on `main`. README opens with `docs/assets/hero.svg` and shows
-  `docs/assets/loss-curve.svg` from a real run. The terminal GIF is still
-  missing and still the highest-value launch asset — `docs/assets/demo.tape`
-  is written and waiting for `brew install vhs`.
+- Repository is **live and public**: `github.com/selimfedakar/handmade-llm`.
+  **All eight chapters are committed and pushed as of 2026-07-30**, one file per
+  commit, through `0491161 Show the phone at the end of the chain`. The working
+  tree is clean and `COMMITS.md` is empty. README opens with
+  `docs/assets/hero.svg`, then the terminal GIF, then the phone screenshot, and
+  shows `docs/assets/loss-curve.svg` from a real run.
+- **Repository topics are still empty** — the fifteen from the launch text are
+  the last piece of setup before the announcement. The `gh repo edit` command is
+  at the top of `COMMITS.md`.
 - `.gitignore` used to list `data/*.txt|json|bin`, and `data/tokens/*.npy`
   walked through the gap. Now `data/*` with `!data/download.py`. Check
   `git status` before every push; a corpus in a teaching repository is
