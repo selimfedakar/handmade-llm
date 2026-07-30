@@ -167,7 +167,9 @@ I have one Mac. The table is only useful if it has more than one Mac in it — s
 
 ## Who is writing this
 
-I am Selim Fedakar, a computer science student in Los Angeles, co-founder and CTO of two small hardware-and-AI companies, with two apps live on the App Store. I build projects alongside people doing AI research at Harvard — I was in Boston last week, and they hosted me there. I have also been working through Stanford's CS336 on my own for a while now, and this repository is where the parts that finally clicked get written down properly.
+I am Ahmet Selim Fedakar, a computer science undergraduate in Los Angeles. I co-founded EXCAR and Auris, two AI voice startups, where I build the machine learning and speech systems; separately, I have shipped two apps to the App Store on my own.
+
+The work here comes out of a year of language modelling done end to end rather than in pieces — tokenizer, architecture, pretraining, fine-tuning, evaluation, quantization — including Stanford's CS336, which I worked through alone. This repository is where the parts that finally made sense get written down properly, and where the numbers behind them are measured rather than assumed.
 
 What I wanted was for the whole chain to fit on one laptop. I kept going until it did.
 
