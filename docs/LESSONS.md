@@ -11,6 +11,165 @@ Newest first.
 
 ---
 
+## L18 — The fix for L13 quietly broke the measurement next to it
+
+**What I expected.** `Benchmark.paired` exists because of L13: two models resident
+at once, alternating rounds inside one loop, medians, and the order flipped to
+prove the loop did not decide the answer. It returns tokens per second *and* peak
+memory. One call, one struct, both numbers earned the same way.
+
+**What happened.** On the phone it printed this, for two models that differ by
+6.4x on disk:
+
+```
+float32 139.1 vs 4-bit 151.3 tok/s (1.088x) · 4-bit ahead in all 7 · peak 111 vs 111 MiB · float32 first
+```
+
+The same pair, measured on the laptop in chapter 07, came out **97 MiB against
+18**.
+
+**How I caught it.** Not by reading the code. 111 against 111, for a 95 MiB model
+and a 15 MiB one, is *implausibly equal* — which is L9's rule arriving from the
+opposite side. There it was a difference too clean to be real; here it is an
+agreement too clean to be real. Both are the instrument talking about itself. And
+the single-model readout was on the same screen saying **17 MiB**, so I had two
+numbers six times apart describing the same model, which is not a thing to
+average.
+
+**Why.** `Memory.peakMemory` is a counter for the **process**, not for a model.
+The paired loop keeps both sets of weights loaded for the entire run — that is
+not incidental, it is the whole fix for L13. So every reading is the peak of a
+process holding 95 MiB and 15 MiB of weights at once, 111 ≈ 95 + 15 + activations,
+labelled with whichever model generated last. The number was never wrong. The
+column heading was.
+
+**And that is the part worth keeping.** The arrangement that makes the speed
+comparison honest is the same arrangement that makes the memory comparison
+impossible. One experiment cannot serve both, and I had put both numbers in one
+struct for no better reason than that they arrive from one call. **A field is a
+claim about what was measured.** Two values returned by the same function are not
+thereby measuring the same subject, and packaging them together is what stopped
+me from noticing.
+
+**What changed.** `PairedResult` has a single `peakMemoryBytes`, documented as
+process-wide, and the summary line reads `111 MiB peak, both resident` instead of
+pretending to compare. Per-model peak memory comes from a single-model run, which
+is what the app's own readout does — and on the phone that is 17 MiB for the
+4-bit model against the laptop's 18.
+
+**And then the same bug, one level down.** A single-model run is not automatically
+clean either. Switching the app's picker from 4-bit to float32 and generating gave
+**112 MiB**, because MLX allocates a model's buffers when it is first *used*, not
+when it is loaded — so that reading carried the 4-bit model's 15 MiB too. I spotted
+it because 112 − 15 is the laptop's 97, wrote the subtraction into the chapter, and
+labelled it "arithmetic, not a measurement". Correct label, wrong stopping point:
+quitting the app and selecting float32 before touching anything takes thirty seconds
+and returns **98 MiB**. The arithmetic was right, and it was still a guess sitting in
+a file where every other number was run. **A process-wide counter measures the
+process, including its history** — so the order you take your readings in is part of
+the experiment, and "one model at a time" is not the same as "one model ever".
+
+**What it cost.** Nothing shipped, and the near-miss is the entry. I had the
+screenshot open and was about to paste `peak 111 vs 111 MiB` into
+`docs/08-ship_ios.md` under a sentence explaining that the 4-bit memory advantage
+does not survive on a phone. That would have been a false finding, in print, with
+a measurement behind it, and it would have been the most quotable line in the
+chapter. **A wrong conclusion that sounds like a discovery is the dangerous
+kind** — nothing about it invites a second look.
+
+## L17 — Recording the demo destroyed what the demo was advertising
+
+**What I expected.** Recording the README GIF is the safest thing left in the
+project. `docs/assets/demo.tape` types two commands the README already tells
+people to type, and the whole point is that they work. Nothing to think about.
+
+**What happened.** It trained sixty steps into `runs/latest`, which is where the
+step-300 checkpoint lived — the one chapters 06, 07 and 08 measured every number
+in this repository against.
+
+```
+runs/latest/checkpoint/meta.json     "step": 300   ->   "step": 60
+runs/latest/checkpoint/weights.safetensors        overwritten
+runs/latest/checkpoint/optimizer.safetensors      overwritten
+runs/latest/log.jsonl                300 steps    ->   60 steps
+```
+
+**How I noticed, which is the part I want to keep.** Not by thinking about it. I
+pulled the last frame out of the GIF to check the text was legible at GitHub's
+width, and read the line under the loss curve:
+
+```
+Checkpoint written to /Users/selimfedakar/handmade-llm/runs/latest/checkpoint
+```
+
+I had recorded that path into a file I was about to put on the front page of the
+repository. The GIF told me what the GIF had done, and it told me only because I
+looked at it instead of checking its size and committing it.
+
+**Why.** `--out-dir` defaults to `runs/latest`, and the tape did not pass it —
+deliberately, because the tape exists to show the command a reader would really
+type. Which is exactly the problem: **the destructive default is in the
+quickstart.** Anybody who follows this repository's own README past chapter 03
+and then re-runs the training line loses their checkpoint, silently, and finds
+out when chapter 06 reports numbers that do not match the page describing it.
+The tape did not introduce a hazard; it walked into one that was already there
+and pointed at every reader.
+
+**What saved it, and it was luck.** `08_ship_ios/bundle_model.py` had
+`shutil.copy2`'d the float32 checkpoint into the app bundle on 26 July for the
+paired comparison. A byte-exact backup of the step-300 weights, made three days
+earlier, for a completely unrelated reason. Restoring took two `cp`s.
+
+The optimizer state and `log.jsonl` were not in that copy and are gone. Neither
+carries a published claim — `docs/assets/loss-curve.svg` was already drawn — but
+`runs/latest/checkpoint` can no longer be resumed from, and the stale optimizer
+file is renamed rather than deleted so `--resume` fails loudly instead of
+running step-300 weights on step-60 Adam moments.
+
+**The overwrite that cost nothing, and why it is the same lesson.** The tape also
+rewrote `data/tokenizer.json`. That one came back **byte-identical** —
+`93d74dfa…` before and after, sha256. BPE training here is stdlib and integer
+work with no floating-point reduction anywhere, so re-running it is genuinely
+free, while training the model is not, for exactly the reason L5 gives. Two
+files overwritten by one command; whether that is a loss or a no-op is decided
+by whether the computation behind the file is deterministic. That is not a
+property you can see by looking at the file.
+
+**What changed.** The tape passes `--out-dir runs/demo`, with the reason written
+above it rather than left as a flag someone tidies away. `COMMITS.md` carries the
+warning where the recording command is. And `CLAUDE.md` has it as a landmine,
+because the next person to regenerate this GIF will be me, months from now, with
+none of this in mind.
+
+**And then the harder half: what to do about damage you cannot undo.** The
+optimizer state and the log are gone for good. The obvious repair — train a fresh
+300-step run into `runs/latest` — is the worst move on the board, because every
+published number in chapters 06, 07 and 08 is tied to *these* weights, including
+the golden fixture the Swift tests assert against and the models measured on the
+phone. New weights would invalidate all of it while looking like a fix.
+
+So the damage stays, and the two places it could be mistaken for working were made
+to fail loudly instead. `load_checkpoint` now checks for all three files before
+touching MLX and names what is missing — because resuming without an optimizer
+restarts Adam's moments at zero underneath a model three hundred steps in, which
+*diverges* rather than raising. And the sixty-step log is renamed aside, so
+`plot_loss.py` exits 1 with "no log" instead of quietly drawing a sixty-step curve
+over the committed three-hundred-step one.
+
+That second one is the general lesson hiding in a specific accident: **a stale
+input plus a script that works is worse than a missing input plus a script that
+stops.** Nothing about `plot_loss.py` was broken. It would have done exactly what
+it is for, correctly, to the wrong data, and written the result onto the front
+page.
+
+**What it cost.** An hour, and nothing permanently — and the "nothing" is why it
+is here rather than in a changelog. The backup that saved a week of measurements
+existed as a side effect of a packaging script. That is not a backup. The
+transferable piece: **a script that demonstrates your tool runs your tool.**
+Demo code, documentation code and screenshot code all execute with the same
+permissions as the real thing, against the same working tree, and they get
+reviewed like prose. This one was reviewed like prose for three days.
+
 ## L16 — The build succeeded, and the compiler was missing
 
 **What I expected.** `swift build` in chapter 08 either works or tells me what is
@@ -615,6 +774,12 @@ values, concatenate.
 keys, so the query sits at the *end* of the key range. Get that alignment wrong
 and nothing raises. Shapes stay valid. Training metrics stay clean. Generation
 quality just quietly degrades.
+
+**Why nothing raises.** A KV-cache changes no shape. Attention over one query and
+n keys is a valid operation whichever position the query is told it occupies, so
+an off-by-one lands as a slightly wrong distribution rather than as an exception.
+And the training loop never touches the cache, so the one number anybody is
+watching stays clean while generation is the thing that is broken.
 
 **What changed.** `test_cache_matches_a_full_forward_pass` demands that feeding
 tokens one at a time produces exactly what one pass over the whole sequence
